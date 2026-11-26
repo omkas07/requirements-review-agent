@@ -14,6 +14,8 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class LLMClient(Protocol):
+    model: str  # имя модели — для паспорта отчёта
+
     def ask_json(self, prompt: str, schema: type[T]) -> T:
         """Структурированный вывод: JSON по схеме pydantic, валидированный."""
         ...

@@ -134,9 +134,20 @@ def build_graph(llm: "LLMClient", *, include_optional: bool = True):
     return g.compile()
 
 
-def run_review(llm: "LLMClient", document: str, source: str = "", **kwargs: Any) -> ReviewState:
+def run_review(
+    llm: "LLMClient", document: str, source: str = "", passport: dict | None = None, **kwargs: Any
+) -> ReviewState:
     graph = build_graph(llm, **kwargs)
-    return graph.invoke({"document": document, "source": source, "findings": [], "metrics": [], "warnings": []})
+    return graph.invoke(
+        {
+            "document": document,
+            "source": source,
+            "passport": passport or {},
+            "findings": [],
+            "metrics": [],
+            "warnings": [],
+        }
+    )
 
 
 def agents_output(state: ReviewState) -> dict:

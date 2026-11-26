@@ -16,6 +16,7 @@ class ReviewState(TypedDict, total=False):
     # Вход
     document: str  # полный текст ТЗ (Markdown или текст из PDF)
     source: str  # путь к файлу, для паспорта и логов
+    passport: dict  # заполняет main.py: модель, дата, коммит, режим — для сборщика
 
     # Код (без LLM)
     vague_hits: list[dict]  # find_vague_words(document)
@@ -29,6 +30,9 @@ class ReviewState(TypedDict, total=False):
     # Модератор → (верификатор) → агент уточнений
     moderated: ModeratorOutput
     questions: list[Question]
+
+    # Сборщик (без LLM): готовый текст отчёта; в файл пишет main.py через ReportWriter
+    report_text: str
 
     # Служебное: что делал каждый узел
     metrics: Annotated[list[dict], operator.add]  # {"node", "llm_calls", "seconds", ...}
