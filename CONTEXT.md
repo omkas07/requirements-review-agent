@@ -6,7 +6,7 @@
 
 > этому файлу — спроси Омара, не придумывай свой вариант.
 
-> Статус задач — в `TASKS.md`.
+> Статус задач — в `TASK.md`.
 
 
 
@@ -90,7 +90,7 @@ ai-requirements-validator/
 
 ├── CONTEXT.md                   # этот файл — общий контекст                        \[Омар]
 
-├── TASKS.md                     # статус задач                                      \[все]
+├── TASK.md                      # статус задач                                      \[все]
 
 ├── README.md                    # ключ, запуск, куда ложится отчёт                  \[Т1]
 
@@ -186,25 +186,31 @@ ai-requirements-validator/
 
 &#x20;   │   ├── state.py             # State (TypedDict) для LangGraph                   \[Омар]
 
+&#x20;   │   ├── prompting.py         # загрузка промптов, string.Template                \[Омар]
+
+&#x20;   │   ├── quotes.py            # нормализация текста, поиск цитаты в документе     \[Омар]
+
 &#x20;   │   ├── parser.py                                                                \[Омар]
 
 &#x20;   │   ├── experts.py           # разработчик, тестировщик, безопасник              \[Омар]
 
 &#x20;   │   ├── moderator.py                                                             \[Омар]
 
-&#x20;   │   ├── verifier.py          # без LLM                                           \[Т1]
+&#x20;   │   ├── verifier.py          # без LLM; экспортирует node(state) -> dict         \[Т1]
 
 &#x20;   │   ├── clarifier.py                                                             \[Омар]
 
-&#x20;   │   ├── report\_builder.py    # без LLM: сортировка, паспорт, рендер              \[Т2]
+&#x20;   │   ├── report\_builder.py    # без LLM; экспортирует node(state) -> dict         \[Т2]
 
 &#x20;   │   └── graph.py             # сборка графа                                      \[Омар]
 
 &#x20;   │
 
-&#x20;   ├── prompts/                 # промпты как .md, подставляются через .format()
+&#x20;   ├── prompts/                 # промпты .md, рендер string.Template ($document, $tone…)
 
 &#x20;   │   ├── parser.md                                                                \[Омар]
+
+&#x20;   │   ├── expert\_base.md       # общая часть трёх экспертов, роль — через $role    \[Омар]
 
 &#x20;   │   ├── expert\_developer.md                                                      \[Омар]
 
@@ -298,6 +304,26 @@ ai-requirements-validator/
 
 
 
+\### Стыковка узлов
+
+\- Граф: `build\_graph(llm: LLMClient)` в `agents/graph.py`. LLM передаётся снаружи из `main.py`; агенты импортируют порт только для типов (`TYPE\_CHECKING`).
+
+\- Один прогон — 6 вызовов LLM: парсер, 3 эксперта (по одному вызову на весь документ), модератор, агент уточнений.
+
+\- Узлы `verifier.py` и `report\_builder.py` подключаются в граф автоматически, если модуль есть и экспортирует `node(state: ReviewState) -> dict`.
+
+\- Верификатор читает `state\["document"]` и `state\["moderated"]`, возвращает `{"moderated": ModeratorOutput, "warnings": \[...]}`; отброшенные замечания — в `warnings`.
+
+\- Пока сборщика нет, выход агентов — `reports/agents\_output.json`: `ModeratorOutput` + `questions` + служебный `\_meta` (вызовы LLM, время, токены, warnings). Его готовит Омар.
+
+\- Сбой эксперта, модератора или агента уточнений не роняет прогон: узел работает без LLM, причина пишется в `warnings`.
+
+\- Модель по умолчанию — `gemini-3.8-flash` (stable, бесплатный тариф; проверено 26.11.2026). `gemini-1.5-flash` из примера организаторов устарел, `gemini-2.5-flash` с 01.12.2026 перенаправляется на `gemini-3.5-flash-lite`.
+
+\- Для Gemini 3 Google рекомендует temperature 1.0 (ниже возможны зацикливания); мы ставим 0 ради воспроизводимости — проверить на первом реальном прогоне.
+
+
+
 Паттерны для защиты: fan-out/fan-in (консилиум), aggregator (модератор),
 
 guardrail (верификатор), human-in-the-loop (вопросы), workflow ради воспроизводимости.
@@ -369,6 +395,76 @@ class SetCheck(BaseModel):
 &#x20;   details: str
 
 &#x20;   refs: list\[str]
+
+```
+
+
+
+\- `Question.blocks` не null — вопрос блокирующий. `q\_id` — «В-1», «В-2»… (В кириллицей), нумерует код.
+
+
+
+\### Промежуточные модели — выход LLM-агентов (там же, в `models.py`)
+
+
+
+```python
+
+class ParsedRequirement(BaseModel):   # парсер
+
+&#x20;   req\_id: str; doc\_ref: str; title: str; quote: str
+
+class ParserOutput(BaseModel):
+
+&#x20;   requirements: list\[ParsedRequirement]
+
+
+
+class Finding(BaseModel):             # эксперты
+
+&#x20;   req\_id: str                       # R-xx или "SET" — про документ целиком
+
+&#x20;   criterion: str; text: str; quote: str
+
+&#x20;   related\_req\_ids: list\[str] = \[]
+
+&#x20;   suggestion: str | None = None
+
+&#x20;   needs\_business\_decision: bool = False
+
+&#x20;   severity: Literal\["blocking", "major", "minor"] = "major"
+
+&#x20;   expert: str | None = None          # заполняет код, не LLM
+
+class ExpertOutput(BaseModel):
+
+&#x20;   findings: list\[Finding]
+
+
+
+class ModeratedRequirement(BaseModel):  # то, что возвращает LLM-модератор
+
+&#x20;   req\_id: str; status: Status; issues: list\[Issue] = \[]; suggestion: str | None = None
+
+class ModeratorLLMOutput(BaseModel):
+
+&#x20;   requirements: list\[ModeratedRequirement]; set\_checks: list\[SetCheck]; strengths: list\[str]
+
+class ModeratorOutput(BaseModel):     # собирает код: doc\_ref/title/quote — из парсера
+
+&#x20;   requirements: list\[Requirement]; set\_checks: list\[SetCheck]; strengths: list\[str]
+
+
+
+class QuestionLink(BaseModel):        # агент уточнений
+
+&#x20;   q\_id: str; req\_ids: list\[str]
+
+&#x20;   issue\_refs: list\[str] = \[]        # «R-05/1» — в какое замечание ставить question\_id
+
+class ClarifierOutput(BaseModel):
+
+&#x20;   questions: list\[Question]; links: list\[QuestionLink]
 
 ```
 
@@ -554,13 +650,25 @@ class SetCheck(BaseModel):
 
 
 
+\## Окружение
+
+\- Python 3.11. Пакеты — только в виртуальном окружении `.venv` в корне, не в системный Python:
+
+&#x20; `python -m venv .venv` → `.venv\Scripts\activate` → `pip install -r requirements.txt`.
+
+\- Ключи — в `.env` (копия `.env.example`); `.env` и `.venv` — в `.gitignore`.
+
+
+
+
+
 \## Git
 
 \- Ветки: `agents` (Омар), `core` (Т1), `report` (Т2). В `main` мержим минимум два раза в день.
 
 \- В `main` всегда лежит запускающийся код.
 
-\- `TASKS.md` обновляешь в том же коммите, что и код.
+\- `TASK.md` обновляешь в том же коммите, что и код.
 
 
 

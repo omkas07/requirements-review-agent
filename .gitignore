@@ -1,0 +1,19 @@
+# Секреты
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Временные файлы отладки агентов
+dev/.cache/
+dev/out/
+
+# IDE и ОС
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

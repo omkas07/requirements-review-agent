@@ -24,27 +24,27 @@
 
 \## Омар — агенты (`agents/`, `prompts/`, `domain/models.py`, `domain/criteria.py`)
 
-\- \[ ] `models.py` — промежуточные модели (ParserOutput, Finding, ExpertOutput, ModeratorOutput, ClarifierOutput)
+\- \[x] `models.py` — промежуточные модели (ParserOutput, Finding, ExpertOutput, ModeratorOutput, ClarifierOutput)
 
-\- \[ ] `criteria.py` — критерии, финтех-чек-лист, `find\_vague\_words`
+\- \[x] `criteria.py` — критерии, финтех-чек-лист, `find\_vague\_words`
 
-\- \[ ] `state.py`, `prompting.py` (string.Template)
+\- \[x] `state.py`, `prompting.py` (string.Template)
 
-\- \[ ] Промпты: `tone.md`, `parser.md`, `expert\_base.md` + 3 роли, `moderator.md`, `clarifier.md`
+\- \[x] Промпты: `tone.md`, `parser.md`, `expert\_base.md` + 3 роли, `moderator.md`, `clarifier.md`
 
-\- \[ ] Парсер (проверено: порядок документа, цитаты — подстроки)
+\- \[\~] Парсер (проверено: порядок документа, цитаты — подстроки)
 
-\- \[ ] Эксперт: разработчик
+\- \[\~] Эксперт: разработчик
 
-\- \[ ] Эксперт: тестировщик
+\- \[\~] Эксперт: тестировщик
 
-\- \[ ] Эксперт: безопасник
+\- \[\~] Эксперт: безопасник
 
-\- \[ ] Модератор (статус + impact + set\_checks + strengths)
+\- \[\~] Модератор (статус + impact + set\_checks + strengths)
 
-\- \[ ] Агент уточнений (вопросы + question\_id)
+\- \[\~] Агент уточнений (вопросы + question\_id)
 
-\- \[ ] `graph.py` — сборка LangGraph, `build\_graph(llm)`
+\- \[x] `graph.py` — сборка LangGraph, `build\_graph(llm)`
 
 \- \[ ] `reports/agents\_output.json` — первый полный выход агентов для Адильхана
 
@@ -54,7 +54,7 @@
 
 \## Рамазан — каркас (`main.py`, `config.py`, `ports/`, `adapters/`, `verifier.py`, README)
 
-\- \[ ] Структура папок, `examples/requirements.md`
+\- \[x] Структура папок, `examples/requirements.md`
 
 \- \[ ] Порты (Protocol): `LLMClient`, `DocumentReader`, `ReportWriter`
 
@@ -74,7 +74,7 @@
 
 \- \[ ] Паспорт прогона (дата, модель, коммит, режим)
 
-\- \[ ] `.env.example`, `requirements.txt`, `.gitignore`
+\- \[\~] `.env.example`, `requirements.txt`, `.gitignore` (requirements.txt и .gitignore — сделал Омар 26.11)
 
 \- \[ ] README
 
@@ -121,4 +121,6 @@
 \## Блокеры и вопросы
 
 <!-- Пиши сюда, если что-то мешает: дата, кто, что -->
+
+26.11, Омар: агенты написаны и проверены на фейковом LLM (dev/run_graph.py --fake); для реальных прогонов нужен GEMINI_API_KEY в .env.
 
