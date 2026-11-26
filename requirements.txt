@@ -1,0 +1,15 @@
+# Агенты и граф
+langgraph>=1.2,<2
+pydantic>=2.14,<3
+
+# LLM: Gemini по умолчанию, OpenAI — запасной (LLM_PROVIDER в .env)
+google-genai>=3.6,<4
+openai>=3.59,<4
+
+# Конфиг, чтение PDF, шаблон отчёта
+python-dotenv>=1.2,<2
+pymupdf>=2.2,<3
+jinja2>=3.1,<4
+
+# Тесты (tests/)
+pytest>=8,<10
