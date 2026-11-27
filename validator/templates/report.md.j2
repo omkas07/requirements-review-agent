@@ -1,0 +1,154 @@
+# Ревью требований: {{ passport.get("title") or passport.get("document", "документ") }}
+
+> {{ verdict.icon }} **{{ verdict.text }}.** {{ headline }}
+{% if open_questions %}
+>
+> **Нужны ваши ответы:** {% for q in open_questions %}[{{ q.q_id }}](#{{ q.q_id | q_anchor }}){% if not loop.last %} · {% endif %}{% endfor %}
+
+{% endif %}
+
+## 1. Паспорт прогона
+
+| Поле | Значение |
+| :--- | :--- |
+| Документ | {{ passport.get("document", "—") | cell }} |
+| Дата прогона | {{ passport.get("date", "—") | cell }} |
+| Модель | {{ passport.get("model", "—") | cell }}{% if passport.get("provider") %} ({{ passport.provider }}){% endif %} |
+| Версия агента | {{ passport.get("commit", "—") | cell }} |
+| Режим | {{ passport.get("mode", "обычный") | cell }} |
+| Требований выделено | {{ summary.requirements }} |
+| Вызовов LLM | {{ passport.get("llm_calls", "—") }} |
+{% if passport.get("seconds") is not none and passport.get("seconds") != "" %}
+| Время прогона | {{ passport.seconds }} с |
+{% endif %}
+{% if dropped is not none %}
+| Отброшено верификатором | {{ dropped }} {{ plural(dropped, "замечание", "замечания", "замечаний") }} с цитатами не из документа |
+{% endif %}
+
+## 2. Сильные стороны документа
+
+{% for s in strengths %}
+- {{ s | one_line }}
+{% else %}
+- Агент не выделил сильных сторон с опорой на цитаты.
+{% endfor %}
+
+<a id="nav"></a>
+## 3. Нарезка требований
+
+Требования выделены в порядке документа. ID присвоены агентом, цитата каждого — в разделе 4.
+
+| ID | Где в документе | Кратко | Статус |
+| :--- | :--- | :--- | :--- |
+{% for r in requirements %}
+| [{{ r.req_id }}](#{{ r.req_id | req_anchor }}) | {{ r.doc_ref | cell }} | {{ r.title | cell }} | {{ icon[r.status] }} {{ label[r.status] }} |
+{% endfor %}
+
+## 4. Проверка каждого требования
+
+Порядок: 🔴 блокирует разработку → 🟡 требует уточнения → 🟢 замечаний нет; внутри статуса — порядок документа.
+
+{% for r in review %}
+<a id="{{ r.req_id | req_anchor }}"></a>
+#### {{ icon[r.status] }} {{ r.req_id }} · {{ r.doc_ref | one_line }} · {{ r.title | one_line }}
+> «{{ r.quote | one_line }}»
+
+{% if r.issues %}
+**Замечания**
+
+{% for i in r.issues %}
+{{ loop.index }}. **{{ i.criterion }}:** {{ i.text | one_line }}
+   <br>📌 *Цитата:* «{{ i.quote | one_line }}»
+{% if i.question_id %}
+   <br>→ [❓ Вопрос {{ i.question_id }}](#{{ i.question_id | q_anchor }}){% if i.question_id in answers %} — ✅ ответ получен{% endif %}
+
+{% endif %}
+{% if i.impact %}
+
+   ⚠️ **Если не исправить:** {{ i.impact | one_line }}
+{% endif %}
+
+{% endfor %}
+{% if r.suggestion %}
+**💡 Предложение:** {{ r.suggestion | one_line }}
+
+{% endif %}
+{% else %}
+Замечаний нет: однозначно, проверяемо, соответствует шаблону.
+
+{% endif %}
+[↑ к требованиям](#nav) · [↑ к вопросам](#questions)
+
+{% endfor %}
+<a id="questions"></a>
+## 5. Вопросы к автору ТЗ
+
+{% for q in questions %}
+<a id="{{ q.q_id | q_anchor }}"></a>
+### {{ "🔴" if q.blocks else "🟡" }} {{ q.q_id }}. {{ q.text | one_line }}
+**Касается:** {% for rid in q.related_reqs %}[{{ rid }}{% if rid in by_id %} ({{ by_id[rid].doc_ref | one_line }}){% endif %}](#{{ rid | req_anchor }}){% if not loop.last %}, {% endif %}{% else %}—{% endfor %}
+
+
+{{ q.context | one_line }}
+{% for o in q.options %}
+- {{ o | one_line }}
+{% endfor %}
+{% if q.blocks %}
+
+*Блокирует: {{ q.blocks | one_line }}*
+{% endif %}
+{% if q.q_id in answers %}
+
+✅ **Ответ автора:** {{ answers[q.q_id] | one_line }}
+{% endif %}
+
+{% else %}
+Вопросов к автору нет: все замечания можно исправить без решения бизнеса.
+
+{% endfor %}
+## 6. Проверка всего набора
+
+| Критерий (ISO/IEC/IEEE 29148, IEEE 830) | Результат | Где |
+| :--- | :--- | :--- |
+{% for c in set_checks %}
+| {{ c.criterion | cell }} | {{ "✅" if c.passed else "❌" }} {{ c.details | cell }} | {% for rid in c.refs %}[{{ rid }}](#{{ rid | req_anchor }}){% if not loop.last %}, {% endif %}{% else %}—{% endfor %} |
+{% endfor %}
+
+## 7. Сводка
+
+- **Требований:** {{ summary.requirements }} — 🔴 {{ summary.blocking }} · 🟡 {{ summary.needs_clarification }} · 🟢 {{ summary.ok }}
+- **Замечаний к требованиям:** {{ summary.issues }}; **критериев набора не выполнено:** {{ summary.set_failed }} из {{ set_checks | length }}
+- **Вопросов к автору:** {{ summary.questions }} (блокирующих — {{ summary.blocking_questions }})
+
+{% if summary.blocking %}
+**Критичные замечания (🔴):**
+
+{% for r in review if r.status == "blocking" %}
+- [{{ r.req_id }}](#{{ r.req_id | req_anchor }}) ({{ r.doc_ref | one_line }}) — {{ r.issues | map(attribute="criterion") | unique | join(", ") | lower }}
+{% endfor %}
+
+{% endif %}
+{% if summary.by_criterion %}
+| Критерий | Замечаний |
+| :--- | ---: |
+{% for name, n in summary.by_criterion %}
+| {{ name | cell }} | {{ n }} |
+{% endfor %}
+
+{% endif %}
+## 8. Итог и порядок исправления
+
+{{ verdict.icon }} **{{ verdict.text }}.**{% if verdict.reasons %} Причина: {{ verdict.reasons | join("; ") }}.{% endif %}
+
+
+- **Разработка:** {{ "можно начинать" if verdict.can_develop else "начинать нельзя" }}.
+- **Тестирование:** {{ "можно готовить тест-кейсы" if verdict.can_test else "тест-кейсы писать рано — есть непроверяемые или противоречивые требования" }}.
+
+Что исправить в первую очередь:
+
+{% for step in plan %}
+{{ loop.index }}. {{ step }}
+{% endfor %}
+
+---
+*Отчёт сформирован агентом автоматически. Вердикт: 🔴 — есть требование, блокирующее разработку, или блокирующий вопрос без ответа; 🟡 — есть требования, требующие уточнения; 🟢 — замечаний нет.*

@@ -31,6 +31,9 @@ class ReviewState(TypedDict, total=False):
     moderated: ModeratorOutput
     questions: list[Question]
 
+    # Интерактивный режим: ответы автора ТЗ на вопросы {"В-1": "б) …"}
+    answers: dict[str, str]
+
     # Сборщик (без LLM): готовый текст отчёта; в файл пишет main.py через ReportWriter
     report_text: str
 

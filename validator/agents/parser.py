@@ -42,7 +42,8 @@ def postprocess(reqs: list[ParsedRequirement], document: str) -> tuple[list[Pars
     seen: set[str] = set()
     for i, r in enumerate(reqs):
         r = r.model_copy(update={"quote": clean_quote(r.quote)})
-        key = normalize(r.quote)
+        # дубль — та же цитата в том же месте; одинаковый текст ячейки в разных таблицах — разные требования
+        key = normalize(r.doc_ref) + "|" + normalize(r.quote)
         if key in seen:
             warnings.append(f"Парсер: дубль требования «{r.quote[:60]}» — пропущен")
             continue

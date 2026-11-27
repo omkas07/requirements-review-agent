@@ -44,8 +44,12 @@ def _optional_node(module: str) -> Callable[[ReviewState], dict] | None:
     return getattr(mod, "node", None)
 
 
-def build_graph(llm: "LLMClient", *, include_optional: bool = True):
-    """Компилирует граф. include_optional=False — без узлов тиммейтов (для отладки)."""
+def build_graph(llm: "LLMClient", *, include_optional: bool = True, include_report: bool = True):
+    """Компилирует граф.
+
+    include_optional=False — без верификатора и сборщика (отладка агентов);
+    include_report=False — без сборщика (интерактивный режим: сначала вопросы, потом отчёт).
+    """
 
     def prepare(state: ReviewState) -> dict:
         t0 = time.time()
@@ -124,7 +128,7 @@ def build_graph(llm: "LLMClient", *, include_optional: bool = True):
     else:
         g.add_edge("moderator", "clarifier")
 
-    report = _optional_node("validator.agents.report_builder") if include_optional else None
+    report = _optional_node("validator.agents.report_builder") if include_optional and include_report else None
     if report is not None:
         g.add_node("report_builder", report)
         g.add_edge("clarifier", "report_builder")
@@ -161,6 +165,7 @@ def agents_output(state: ReviewState) -> dict:
         "metrics": state.get("metrics", []),
         "warnings": state.get("warnings", []),
         "findings_raw": len(state.get("findings", [])),
+        "findings": [f.model_dump(mode="json") for f in state.get("findings", [])],  # для диагностики пропусков
         "vague_hits": state.get("vague_hits", []),
     }
     return data

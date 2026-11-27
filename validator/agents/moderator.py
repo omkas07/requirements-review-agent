@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from validator.ports.llm import LLMClient
 
 SET_ORDER = [c.name for c in SET_CRITERIA]
+IMPORTANT = ("blocking", "major")
 
 
 def findings_block(findings: list[Finding]) -> str:
@@ -89,6 +90,14 @@ def assemble(
             m = fallback_requirement(r, findings)
         issues = [i.model_copy(update={"question_id": None}) for i in m.issues]
         status = m.status
+        # Страховка: модератор не может «закрыть» требование, по которому эксперты нашли
+        # важные проблемы, — такие находки возвращаются как есть.
+        important = [f for f in findings if f.req_id == r.req_id and f.severity in IMPORTANT]
+        if llm_out is not None and not issues and important:
+            issues = [_issue_from_finding(f) for f in important]
+            status = "blocking" if any(f.severity == "blocking" for f in important) else "needs_clarification"
+            m.suggestion = m.suggestion or next((f.suggestion for f in important if f.suggestion), None)
+            warnings.append(f"Модератор пометил {r.req_id} без замечаний, хотя эксперты нашли важные проблемы ({len(important)}) — возвращены")
         if issues and status == "ok":
             status = "needs_clarification"
             warnings.append(f"{r.req_id}: статус ok при наличии замечаний → needs_clarification")

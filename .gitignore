@@ -8,12 +8,12 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# Временные файлы отладки агентов
-dev/.cache/
-dev/out/
-
 # IDE и ОС
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
+.llm_cache/
+
+# служебный выход агентов последнего прогона (для eval/evaluate.py)
+eval/last_run.json
